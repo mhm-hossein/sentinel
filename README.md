@@ -532,6 +532,8 @@ sentinel/
 
 ## License / disclaimer
 
+MIT — see [LICENSE](LICENSE).
+
 Provided as-is for educational and authorized use. Automating user accounts may
 violate Telegram's Terms of Service; you are responsible for how you deploy and
-use this software.
+use this software, and for any consequences (including account bans) that follow.
