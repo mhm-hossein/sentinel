@@ -63,6 +63,20 @@ apt-get update -qq
 PKGS="git curl ca-certificates python3 python3-venv python3-pip"
 apt-get install -y -qq $PKGS >/dev/null
 
+# Run a command as the service user. Minimal VPS images ship without `sudo`, so
+# prefer `runuser` (util-linux, always present) and fall back to sudo/setpriv.
+as_user() {
+  if command -v runuser >/dev/null 2>&1; then
+    runuser -u "$SERVICE_USER" -- "$@"
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo -u "$SERVICE_USER" -H -- "$@"
+  elif command -v setpriv >/dev/null 2>&1; then
+    setpriv --reuid="$SERVICE_USER" --regid="$SERVICE_USER" --clear-groups "$@"
+  else
+    su -s /bin/sh "$SERVICE_USER" -c "$(printf '%q ' "$@")"
+  fi
+}
+
 # Prefer a 3.12+ interpreter (the project targets 3.12; 3.11 also works).
 pick_python() {
   local c
@@ -104,10 +118,13 @@ cd "$INSTALL_DIR"
 # ------------------------------------------------------------------ virtualenv
 say "Creating virtualenv + installing dependencies"
 if [ ! -x "$INSTALL_DIR/.venv/bin/python" ]; then
-  sudo -u "$SERVICE_USER" "$PY_BIN" -m venv "$INSTALL_DIR/.venv"
+  as_user env "HOME=$INSTALL_DIR" "$PY_BIN" -m venv "$INSTALL_DIR/.venv"
 fi
-sudo -u "$SERVICE_USER" "$INSTALL_DIR/.venv/bin/pip" install --upgrade pip wheel -q
-sudo -u "$SERVICE_USER" "$INSTALL_DIR/.venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt" -q
+# The service user owns the dir but may lack $HOME for pip's cache; point it at
+# a writable temp dir so a locked-down account can't break the install.
+PIP_ENV=(env "HOME=$INSTALL_DIR" PIP_DISABLE_PIP_VERSION_CHECK=1)
+as_user "${PIP_ENV[@]}" "$INSTALL_DIR/.venv/bin/pip" install --upgrade pip wheel -q
+as_user "${PIP_ENV[@]}" "$INSTALL_DIR/.venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt" -q
 dim "deps:    telethon, aiosqlite, python-dotenv, aiohttp, pypdf, python-docx, psutil"
 
 # --------------------------------------------------------------------- .env
