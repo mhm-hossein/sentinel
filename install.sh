@@ -103,12 +103,21 @@ if ! id -u "$SERVICE_USER" >/dev/null 2>&1; then
 fi
 
 # ---------------------------------------------------------------- get the code
+# The checkout is owned by the service user but this script runs as root, and
+# modern git refuses to operate on a repo with a foreign owner ("dubious
+# ownership"). Scope the exception to this one directory instead of --global.
+GIT=(git -c "safe.directory=$INSTALL_DIR")
 if [ -d "$INSTALL_DIR/.git" ]; then
   say "Updating existing checkout in $INSTALL_DIR"
-  git -C "$INSTALL_DIR" fetch --depth 1 origin "$BRANCH"
-  git -C "$INSTALL_DIR" reset --hard "origin/$BRANCH"
+  "${GIT[@]}" -C "$INSTALL_DIR" fetch --depth 1 origin "$BRANCH"
+  "${GIT[@]}" -C "$INSTALL_DIR" reset --hard "origin/$BRANCH"
 else
   say "Cloning repository"
+  if [ -d "$INSTALL_DIR" ] && [ -n "$(ls -A "$INSTALL_DIR" 2>/dev/null)" ]; then
+    BACKUP="$INSTALL_DIR.bak.$(date +%Y%m%d%H%M%S)"
+    warn "$INSTALL_DIR exists but is not a git checkout — moving it to $BACKUP"
+    mv "$INSTALL_DIR" "$BACKUP"
+  fi
   rm -rf "$INSTALL_DIR"
   git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
 fi
