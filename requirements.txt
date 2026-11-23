@@ -1,0 +1,12 @@
+# Banner Self-Bot dependencies (Python 3.12+)
+Telethon>=1.36,<2.0
+aiosqlite>=0.20,<1.0
+python-dotenv>=1.0,<2.0
+
+# AI Assistant module (Google Gemini)
+aiohttp>=3.9,<4.0
+pypdf>=4.0,<6.0
+python-docx>=1.1,<2.0
+
+# System / VPS monitor
+psutil>=5.9,<7.0

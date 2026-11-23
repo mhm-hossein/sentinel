@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Byte-compile every module
+        run: python -m compileall -q . -x '(\\.venv|venv|data|tests/data)'
+
+      - name: Platform audit harness
+        env:
+          PYTHONUTF8: "1"
+        run: python tests/audit_harness.py
+
+      - name: Instance-deletion harness
+        env:
+          PYTHONUTF8: "1"
+        run: python tests/test_instance_deletion.py
+
+      - name: Bugfix regression suite
+        env:
+          PYTHONUTF8: "1"
+        run: python tests/test_bugfix_batch.py
+
+      - name: Installer syntax check
+        run: bash -n install.sh
+
+  secrets:
+    name: No committed secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan for tokens, key files and databases
+        run: |
+          set -e
+          fail=0
+          # Telegram bot tokens
+          if grep -rInE '[0-9]{8,10}:AA[0-9A-Za-z_-]{30,}' --exclude-dir=.git .; then
+            echo "::error::Telegram bot token found in the tree"; fail=1
+          fi
+          # Google API keys
+          if grep -rInE 'AIza[0-9A-Za-z_-]{30,}' --exclude-dir=.git .; then
+            echo "::error::Google API key found in the tree"; fail=1
+          fi
+          # GitHub tokens
+          if grep -rInE 'gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}' --exclude-dir=.git .; then
+            echo "::error::GitHub token found in the tree"; fail=1
+          fi
+          # Runtime/secret files must never be committed
+          if git ls-files | grep -E '(^|/)\.env$|\.session(-journal)?$|\.db(-wal|-shm)?$'; then
+            echo "::error::Runtime or secret file tracked by git"; fail=1
+          fi
+          exit $fail

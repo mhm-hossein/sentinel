@@ -1,0 +1,32 @@
+# Secrets & runtime state
+banner/config.py
+*.session
+*.session-journal
+*.db
+*.db-wal
+*.db-shm
+
+# Environment (.env holds secrets; keep .env.example tracked)
+.env
+!.env.example
+
+# Sentinel runtime data
+data/
+backups/
+tests/data/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Local agent / editor state
+.claude/
+.codebase-memory/
+.idea/
+.vscode/
+.DS_Store

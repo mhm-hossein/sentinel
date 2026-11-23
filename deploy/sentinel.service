@@ -1,0 +1,31 @@
+[Unit]
+Description=Sentinel Platform (multi-user Telegram automation control plane)
+Documentation=file:///opt/sentinel/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Adjust User/WorkingDirectory to your deployment.
+User=sentinel
+WorkingDirectory=/opt/sentinel
+EnvironmentFile=/opt/sentinel/.env
+ExecStart=/opt/sentinel/.venv/bin/python start.py
+# Force UTF-8 so the startup banner/diagnostics never crash on a minimal locale.
+Environment=PYTHONUTF8=1
+Environment=PYTHONUNBUFFERED=1
+
+# Restart after crash; survive reboots via WantedBy below.
+Restart=always
+RestartSec=5
+# Give the platform time to stop workers gracefully on shutdown.
+TimeoutStopSec=30
+KillSignal=SIGTERM
+
+# Hardening (safe defaults; loosen if a module needs more).
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
